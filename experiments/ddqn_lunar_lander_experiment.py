@@ -15,7 +15,7 @@ print(f'Using device {device}')
 episodes = 250
 repetitions = 3
 eval_every_episodes = 50
-eval_episodes = 5
+eval_episodes = 10
 
 env = gym.make('LunarLander-v2')
 
@@ -42,7 +42,7 @@ for a, agent in enumerate(agents):
         step_count = 0
         steps = np.zeros(episodes, dtype=np.int32)
 
-        eval_episode_rewards = np.zeros(episodes // eval_episodes, dtype=np.float32)
+        eval_episode_rewards = np.zeros(episodes // eval_every_episodes, dtype=np.float32)
 
         for episode in range(episodes):
             obsv, done = env.reset(), False
