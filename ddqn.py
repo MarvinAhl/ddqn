@@ -119,7 +119,7 @@ class DDQN:
 
         self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate_start)
 
-        self.buffer = ExperienceBuffer(self.buffer_size, self.state_dim)
+        self.buffer = ExperienceBuffer(self.buffer_size_max, self.state_dim)
 
         self.learning_rate = self.learning_rate_start
         self.epsilon = self.epsilon_start
