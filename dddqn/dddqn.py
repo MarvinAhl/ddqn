@@ -168,6 +168,7 @@ class DDDQN:
         self._update_target(1.0)  # Fully copy Online Net weights to Target Net
 
         self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate_start)
+        self.loss_function = nn.HuberLoss()
 
         self.buffer = ExperienceBuffer(self.buffer_size_max, self.state_dim, self.alpha, self.beta, self.beta_increase_steps)
 
