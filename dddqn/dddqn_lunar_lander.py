@@ -15,8 +15,8 @@ nS = env.observation_space.shape[0]
 nA = env.action_space.n
 
 agent = DDDQN(nS, nA, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=20000, learning_rate_min=0.0003,
-             epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
-             buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, device=device)
+              epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
+              buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_decay_steps=20000, device=device)
 
 episode_rewards = []
 steps = []

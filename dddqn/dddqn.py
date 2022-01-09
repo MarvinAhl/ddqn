@@ -37,7 +37,7 @@ class ExperienceBuffer:
     """
     Prioritizing Replay Buffer
     """
-    def __init__(self, max_len, state_dim, alpha=0.6, beta=0.1, beta_decay_steps=20000):
+    def __init__(self, max_len, state_dim, alpha=0.6, beta=0.1, beta_increase_steps=20000):
         self.states = np.empty((max_len, state_dim), dtype=np.float32)
         self.actions = np.empty(max_len, dtype=np.int16)
         self.rewards = np.empty(max_len, dtype=np.float32)
@@ -54,7 +54,7 @@ class ExperienceBuffer:
         self.probs_updated = False  # Indicates whether probabilities have to be recalculated
         self.alpha = alpha  # Blend between uniform distribution (alpha = 0) and Probabilities according to rank (alpha = 1)
         self.beta = beta  # Blend between full bias correction (beta = 1) and no bias correction (beta = 0)
-        self.beta_decay_rate = 0.01**(1/beta_decay_steps)  # Base to choose for beta decay to reach 1 percent of start value after given steps
+        self.beta_increase = (1.0 - beta) / beta_increase_steps  # Base to choose for beta decay to reach 1 percent of start value after given steps
     
     def store_experience(self, state, action, reward, next_state, terminal):
         self.states[self.index] = state
@@ -87,7 +87,8 @@ class ExperienceBuffer:
             unnormed_weights = (self.probabilities[:buff_len] * buff_len)**-self.beta
             self.weights[:buff_len] = unnormed_weights / unnormed_weights.max()
 
-            self.beta *= self.beta_decay_rate  # Update beta
+            self.beta += self.beta_increase  # Update beta
+            self.beta = min(1.0, self.beta)
 
             self.probs_updated = True
 
@@ -109,12 +110,8 @@ class DDDQN:
     def __init__(self, state_dim, action_num, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005,
                  learning_rate_decay_steps=20000, learning_rate_min=0.0003, epsilon_start=1.0, epsilon_decay_steps=20000,
                  epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
-                 buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, device='cuda'):
-        """
-        Gamme is the Discount, Epsilon is the probability of choosing random action as opposed to greedy one.
-        Buffer Size determins max number of stored experiences, Batch Size is training batch size in one training step.
-        Target frozen steps is the timer after which the target network is updated.
-        """
+                 buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device='cuda'):
+
         self.state_dim = state_dim
         self.action_num = action_num
         self.hidden_layers = hidden_layers
@@ -126,13 +123,16 @@ class DDDQN:
         self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=learning_rate_start)  # Using RMSProp because it's more stable than Adam
         self.loss_function = nn.HuberLoss()
 
-        self.buffer = ExperienceBuffer(buffer_size_max, state_dim)
+        self.buffer = ExperienceBuffer(buffer_size_max, state_dim, alpha, beta, beta_increase_steps)
         self.buffer_size_max = buffer_size_max
         self.buffer_size_min = buffer_size_min
         self.batch_size = batch_size
-        self.replays = replays
+        self.replays = replays  # On how many batches it should train after each step
+        self.alpha = alpha
+        self.beta = beta
+        self.beta_increase_steps = beta_increase_steps
 
-        self.gamma = gamma
+        self.gamma = gamma  # Reward discount rate
 
         # Linearly decay Learning Rate and Epsilon from start to min in a given amount of steps
         self.learning_rate = learning_rate_start
@@ -145,6 +145,7 @@ class DDDQN:
         self.epsilon_decay = (epsilon_start - epsilon_min) / epsilon_decay_steps
         self.epsilon_min = epsilon_min
 
+        # Temperature for Softmax
         self.temp = temp_start
         self.temp_start = temp_start
         # Decay rate is the base which leads to decaying exponentially from start to min in given steps
@@ -168,7 +169,7 @@ class DDDQN:
 
         self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate_start)
 
-        self.buffer = ExperienceBuffer(self.buffer_size_max, self.state_dim)
+        self.buffer = ExperienceBuffer(self.buffer_size_max, self.state_dim, self.alpha, self.beta, self.beta_increase_steps)
 
         self.learning_rate = self.learning_rate_start
         self.epsilon = self.epsilon_start
