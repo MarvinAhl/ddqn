@@ -15,7 +15,7 @@ nS = env.observation_space.shape[0]
 nA = env.action_space.n
 
 agent = DDDQN(nS, nA, device=device)
-agent.load_net('lunar_lander.net')
+agent.load_net('lunar_lander_400_backup.net')
 
 episode_rewards = np.zeros(episodes, dtype=np.float32)
 
