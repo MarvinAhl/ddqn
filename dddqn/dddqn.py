@@ -34,17 +34,27 @@ class Network(nn.Module):
         return q
 
 class ExperienceBuffer:
-    def __init__(self, max_len, state_dim):
+    """
+    Prioritizing Replay Buffer
+    """
+    def __init__(self, max_len, state_dim, alpha=0.6, beta=0.1, beta_decay_steps=20000):
         self.states = np.empty((max_len, state_dim), dtype=np.float32)
         self.actions = np.empty(max_len, dtype=np.int16)
         self.rewards = np.empty(max_len, dtype=np.float32)
         self.next_states = np.empty((max_len, state_dim), dtype=np.float32)
         self.terminals = np.empty(max_len, dtype=np.int8)
+        self.errors = np.empty(max_len, dtype=np.float32)  # The Q-Network temporal difference error used for training
+        self.weights = np.empty(max_len, dtype=np.float32)  # Weights for gradient descend bias correction
+        self.probabilities = np.empty(max_len, dtype=np.float32)
 
         self.index = 0
         self.full = False
         self.max_len = max_len
         self.rng = np.random.default_rng()
+        self.probs_updated = False  # Indicates whether probabilities have to be recalculated
+        self.alpha = alpha  # Blend between uniform distribution (alpha = 0) and Probabilities according to rank (alpha = 1)
+        self.beta = beta  # Blend between full bias correction (beta = 1) and no bias correction (beta = 0)
+        self.beta_decay_rate = 0.01**(1/beta_decay_steps)  # Base to choose for beta decay to reach 1 percent of start value after given steps
     
     def store_experience(self, state, action, reward, next_state, terminal):
         self.states[self.index] = state
@@ -52,23 +62,45 @@ class ExperienceBuffer:
         self.rewards[self.index] = reward
         self.next_states[self.index] = next_state
         self.terminals[self.index] = terminal
+        self.errors[self.index] = 1.0 if self.__len__() == 0 else self.errors.max()  # To make it likely picked the first time
+
+        self.probs_updated = False
         
         self.index += 1
         self.index %= self.max_len  # Replace oldest Experiences if Buffer is full
         self.full = True if self.index == 0 else self.full
+    
+    def update_experiences(self, indices, errors):
+        self.errors[indices] = errors
+        self.probs_updated = False
 
     def get_experiences(self, batch_size):
-        newest_index = self.index - 1 if self.index > 0 else self.max_len - 1
-        indices = self.rng.choice(self.__len__(), batch_size - 1)  # One less than batch_size because newest element is safe in
-        indices = np.append(indices, newest_index)
+        buff_len = self.__len__()
+        
+        if not self.probs_updated:
+            abs_errors = np.abs(self.errors[:buff_len])
+            sorted_indices = abs_errors.argsort()[::-1]  # Indices from highest to lowest error
+            ranks = np.arange(buff_len)[sorted_indices] + 1.0
+            scaled_priorities = (1.0 / ranks)**self.alpha
+            
+            self.probabilities[:buff_len] = scaled_priorities / scaled_priorities.sum()
+            unnormed_weights = (self.probabilities[:buff_len] * buff_len)**-self.beta
+            self.weights[:buff_len] = unnormed_weights / unnormed_weights.max()
 
+            self.beta *= self.beta_decay_rate  # Update beta
+
+            self.probs_updated = True
+
+        indices = self.rng.choice(np.arange(buff_len), batch_size, p=self.probabilities[:buff_len])
+
+        weights = np.array([self.weights[i] for i in indices], dtype=np.float32)
         states = np.array([self.states[i] for i in indices], dtype=np.float32)
         actions = np.array([self.actions[i] for i in indices], dtype=np.int16)
         rewards = np.array([self.rewards[i] for i in indices], dtype=np.float32)
         next_states = np.array([self.next_states[i] for i in indices], dtype=np.float32)
         terminals = np.array([self.terminals[i] for i in indices], dtype=np.int8)
 
-        return states, actions, rewards, next_states, terminals
+        return indices, weights, states, actions, rewards, next_states, terminals
 
     def __len__(self):
         return self.max_len if self.full else self.index
@@ -76,7 +108,7 @@ class ExperienceBuffer:
 class DDDQN:
     def __init__(self, state_dim, action_num, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005,
                  learning_rate_decay_steps=20000, learning_rate_min=0.0003, epsilon_start=1.0, epsilon_decay_steps=20000,
-                 epsilon_min=0.1, temp_start=1, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
+                 epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
                  buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, device='cuda'):
         """
         Gamme is the Discount, Epsilon is the probability of choosing random action as opposed to greedy one.
@@ -119,7 +151,7 @@ class DDDQN:
         self.temp_decay_rate = (temp_min/temp_start)**(1/temp_decay_steps)
         self.temp_min = temp_min
 
-        self.tau = tau
+        self.tau = tau  # Mixing parameter for polyak averaging
 
         self.device = device
 
@@ -197,8 +229,9 @@ class DDDQN:
             return  # Dont train until Replay Buffer has collected a certain number of initial experiences
 
         for _ in range(self.replays):
-            states, actions, rewards, next_states, terminals = self.buffer.get_experiences(self.batch_size)
+            indices, weights, states, actions, rewards, next_states, terminals = self.buffer.get_experiences(self.batch_size)
 
+            weights = tensor(weights, device=self.device, dtype=torch.float32)
             states = tensor(states, device=self.device, dtype=torch.float32)
             rewards = tensor(rewards, device=self.device, dtype=torch.float32)
             actions = tensor(actions, device=self.device, dtype=torch.int64)
@@ -211,8 +244,10 @@ class DDDQN:
 
             targets = rewards + self.gamma * max_action_vals * (1 - terminals)
             predictions = self.q_net(states).gather(1, actions.unsqueeze(1)).squeeze()
-            #loss = (targets - predictions).pow(2).mul(0.5).mean()
-            loss = self.loss_function(predictions, targets)  # Huber Loss
+            loss = self.loss_function(weights*predictions, weights*targets)  # Huber Loss with bias correction using weights
+
+            errors = (targets - predictions).detach().cpu().numpy()
+            self.buffer.update_experiences(indices, errors)  # Update replay buffer's temporal difference errors
 
             self.optimizer.zero_grad()
             loss.backward()
