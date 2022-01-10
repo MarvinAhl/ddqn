@@ -97,5 +97,3 @@ for run in range(training_runs):
             save_stats(run+1, episode+1)
 
 env.close()
-
-save_stats(episode)
