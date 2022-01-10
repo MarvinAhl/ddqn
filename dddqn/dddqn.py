@@ -57,6 +57,11 @@ class ExperienceBuffer:
         self.beta_increase = (1.0 - beta) / beta_increase_steps  # Base to choose for beta decay to reach 1 percent of start value after given steps
     
     def store_experience(self, state, action, reward, next_state, terminal):
+        """
+        Stores given SARS Experience in the Replay Buffer.
+        Returns True if the last element has been written into memory and
+        it will start over replacing the first elements at the next call.
+        """
         self.states[self.index] = state
         self.actions[self.index] = action
         self.rewards[self.index] = reward
@@ -68,7 +73,11 @@ class ExperienceBuffer:
         
         self.index += 1
         self.index %= self.max_len  # Replace oldest Experiences if Buffer is full
-        self.full = True if self.index == 0 else self.full
+
+        if self.index == 0:
+            self.full = True
+            return True
+        return False
     
     def update_experiences(self, indices, errors):
         self.errors[indices] = errors
@@ -108,9 +117,9 @@ class ExperienceBuffer:
 
 class DDDQN:
     def __init__(self, state_dim, action_num, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005,
-                 learning_rate_decay_steps=20000, learning_rate_min=0.0003, epsilon_start=1.0, epsilon_decay_steps=20000,
+                 learning_rate_decay_steps=50000, learning_rate_min=0.0003, epsilon_start=1.0, epsilon_decay_steps=20000,
                  epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
-                 buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device='cuda'):
+                 buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device='cpu'):
 
         self.state_dim = state_dim
         self.action_num = action_num
@@ -221,7 +230,9 @@ class DDDQN:
         """
         Takes experience and stores it for replay.
         """
-        self.buffer.store_experience(state, action, reward, next_state, terminal)
+        if self.buffer.store_experience(state, action, reward, next_state, terminal):
+            self.epsilon = self.epsilon_start  # Reset exploration rate when Replay Buffer is full to always have
+            self.temp = self.temp_start        # negative Experiences in storage. Will prevent catastrophic forgetting
     
     def train(self):
         """

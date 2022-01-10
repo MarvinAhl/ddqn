@@ -8,7 +8,7 @@ from tqdm import tqdm
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Using device {device}')
 
-training_runs = 3
+training_runs = 5
 episodes = 1000
 backup_episodes = 250
 
@@ -18,8 +18,8 @@ nS = env.observation_space.shape[0]
 nA = env.action_space.n
 
 agent = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-              epsilon_start=1.0, epsilon_decay_steps=50000, epsilon_min=0.1, temp_start=10, temp_decay_steps=50000, temp_min=0.1, buffer_size_min=200,
-              buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=50000, device=device)
+              epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
+              buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device=device)
 
 episode_rewards = []
 steps = []
@@ -65,7 +65,7 @@ for run in range(training_runs):
     steps = []
     greedy_rates = []
 
-    for episode in tqdm(range(episodes), leave=False):
+    for episode in tqdm(range(episodes)):
         obsv, done = env.reset(), False
 
         episode_reward = 0.0
