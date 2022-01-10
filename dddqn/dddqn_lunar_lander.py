@@ -9,7 +9,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Using device {device}')
 
 training_runs = 3
-episodes = 1001
+episodes = 1000
 backup_episodes = 250
 
 env = gym.make('LunarLander-v2')
@@ -95,5 +95,7 @@ for run in range(training_runs):
 
         if (episode+1) % backup_episodes == 0:
             save_stats(run+1, episode+1)
+    
+    save_stats(run+1, episodes)
 
 env.close()
