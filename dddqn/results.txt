@@ -1,0 +1,5 @@
+Best:
+r2_e1000
+r1_e500
+
+r3 is utter garbage
