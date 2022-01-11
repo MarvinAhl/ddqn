@@ -1,7 +1,0 @@
-Best:
-r2_e1000
-r1_e500
-
-r3 is utter garbage
-
-Hidden Layers = (1000, 2000, 2000, 2000, 1000)
