@@ -8,7 +8,7 @@ from tqdm import tqdm
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Using device {device}')
 
-training_runs = 5
+training_runs = 3
 episodes = 1000
 backup_episodes = 250
 
@@ -74,7 +74,7 @@ for run in range(training_runs):
         while not done:
             #env.render()
 
-            action, is_greedy = agent.act_softmax(obsv)
+            action, is_greedy = agent.act_e_greedy(obsv)
             new_obsv, reward, done, info = env.step(action)
             time_out = 'TimeLimit.truncated' in info and info['TimeLimit.truncated']
             terminal = done and not time_out

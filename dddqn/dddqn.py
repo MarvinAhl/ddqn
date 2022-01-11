@@ -189,15 +189,19 @@ class DDDQN:
         """
         Decides on action based on current state using epsilon-greedy Policy.
         """
+        with torch.no_grad():
+            state = tensor(state, device=self.device, dtype=torch.float32).unsqueeze(0)
+            Q = self.q_net(state).squeeze()
+            greedy_action = Q.argmax().item()
+
         if self.rng.random() < self.epsilon:
             action = self.rng.integers(self.action_num)  # Random
         else:
-            with torch.no_grad():
-                state = tensor(state, device=self.device, dtype=torch.float32).unsqueeze(0)
-                Q = self.q_net(state).squeeze()  # Greedy
-                action = Q.argmax().item()
+            action = greedy_action  # Greedy
+        
+        is_greedy = action == greedy_action
 
-        return action
+        return action, is_greedy
     
     def act_softmax(self, state):
         """
@@ -224,7 +228,7 @@ class DDDQN:
             state = tensor(state, device=self.device, dtype=torch.float32).unsqueeze(0)
             Q = self.q_net(state).squeeze()
             action = Q.argmax().item()
-        return action
+        return action, True
     
     def experience(self, state, action, reward, next_state, terminal):
         """

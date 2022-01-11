@@ -15,7 +15,7 @@ nS = env.observation_space.shape[0]
 nA = env.action_space.n
 
 agent = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), device=device)
-agent.load_net('lunar_lander_r2_e1000.net')
+agent.load_net('experiments_20220110/lunar_lander_r3_e750.net')
 
 episode_rewards = np.zeros(episodes, dtype=np.float32)
 
@@ -26,7 +26,7 @@ for episode in tqdm(range(episodes)):
     while not done:
         env.render()
 
-        action = agent.act_greedily(obsv)
+        action, _ = agent.act_greedily(obsv)
         new_obsv, reward, done, info = env.step(action)
         time_out = 'TimeLimit.truncated' in info and info['TimeLimit.truncated']
         terminal = done and not time_out
