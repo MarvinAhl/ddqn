@@ -67,7 +67,7 @@ class ExperienceBuffer:
         self.rewards[self.index] = reward
         self.next_states[self.index] = next_state
         self.terminals[self.index] = terminal
-        self.errors[self.index] = 1.0 if self.__len__() == 0 else self.errors.max()  # To make it likely picked the first time
+        self.errors[self.index] = 1.0 if self.__len__() == 0 else self.errors[:self.__len__()].max()  # To make it likely picked the first time
 
         self.probs_updated = False
         
