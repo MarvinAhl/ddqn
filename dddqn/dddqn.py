@@ -54,7 +54,7 @@ class ExperienceBuffer:
         self.probs_updated = False  # Indicates whether probabilities have to be recalculated
         self.alpha = alpha  # Blend between uniform distribution (alpha = 0) and Probabilities according to rank (alpha = 1)
         self.beta = beta  # Blend between full bias correction (beta = 1) and no bias correction (beta = 0)
-        self.beta_increase = (1.0 - beta) / beta_increase_steps  # Base to choose for beta decay to reach 1 percent of start value after given steps
+        self.beta_increase = (1.0 - beta) / beta_increase_steps  # Adder to reach 1 within given amoutn of steps
     
     def store_experience(self, state, action, reward, next_state, terminal):
         """
@@ -117,7 +117,7 @@ class ExperienceBuffer:
 
 class DDDQN:
     def __init__(self, state_dim, action_num, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005,
-                 learning_rate_decay_steps=50000, learning_rate_min=0.0003, epsilon_start=1.0, epsilon_decay_steps=20000,
+                 learning_rate_decay_steps=50000, learning_rate_min=0.0003, weight_decay=0.01, epsilon_start=1.0, epsilon_decay_steps=20000,
                  epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
                  buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device='cpu'):
 
@@ -129,7 +129,9 @@ class DDDQN:
         self.target_q_net = Network(layers, device).to(device)
         self._update_target(1.0)  # Fully copy Online Net weights to Target Net
 
-        self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=learning_rate_start)  # Using RMSProp because it's more stable than Adam
+        self.optimizer = torch.optim.RMSprop(self.q_net.parameters(),  # Using RMSProp because it's more stable than Adam
+                                             lr=learning_rate_start, weight_decay=weight_decay)
+        self.weight_decay = weight_decay
         self.loss_function = nn.HuberLoss()
 
         self.buffer = ExperienceBuffer(buffer_size_max, state_dim, alpha, beta, beta_increase_steps)
@@ -176,7 +178,7 @@ class DDDQN:
         self.target_q_net = Network(layers, self.device).to(self.device)
         self._update_target(1.0)  # Fully copy Online Net weights to Target Net
 
-        self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate_start)
+        self.optimizer = torch.optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate_start, weight_decay=self.weight_decay)
         self.loss_function = nn.HuberLoss()
 
         self.buffer = ExperienceBuffer(self.buffer_size_max, self.state_dim, self.alpha, self.beta, self.beta_increase_steps)

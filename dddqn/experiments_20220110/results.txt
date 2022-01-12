@@ -5,3 +5,5 @@
 5. Run: like 4
 
 Overall Winner: r3 e750
+
+Hidden Layerrs = (1000, 2000, 2000, 2000, 1000)

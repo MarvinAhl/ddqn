@@ -1,0 +1,21 @@
+1. Run:
+250: path not optimal but stable!
+500: very aggressive but also stable        Winner!
+750: worse, slidy and not that stable
+1000: godaweful
+
+2. Run:
+250: also very aggressive and looking pretty good
+500: even more aggressive and a bit unstable at times
+750: I wouldnt want to fly in that one but seems to be good
+1000 is just too much ...
+
+3. Run:
+250: off to the moon it goes! Wait ...
+500: Hovering but doesnt really have the courage to actually land, funniest one by far
+750: very good compared to its predecessors but landing is a bit rough sometimes
+1000: like 500 but a bit more aggressive
+
+Seems like epsilon greedy is actually better than softmax under these circumstances
+
+Hidden Layers = (1000, 2000, 2000, 2000, 1000)
