@@ -21,12 +21,12 @@ agent0 = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99,
               weight_decay=0.0, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
               buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device=device)
 
-agent01 = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-              weight_decay=0.1, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
+agent3 = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
+              weight_decay=0.001, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
               buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device=device)
 
-agent001 = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-              weight_decay=0.01, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
+agent4 = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
+              weight_decay=0.0001, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
               buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device=device)
 
 agent = agent0
@@ -71,9 +71,9 @@ for run in range(training_runs):
 
     # First 2 runs with weight_decay of 0
     if run == 2:
-        agent = agent01  # 3. and 4. run with weight_decay of 0.1
+        agent = agent3  # 3. and 4. run with weight_decay of 0.001
     elif run == 4:
-        agent = agent001  # Final two runs with weight_decay of 0.01
+        agent = agent4  # Final two runs with weight_decay of 0.0001
 
     agent.reset()
     episode_rewards = []
