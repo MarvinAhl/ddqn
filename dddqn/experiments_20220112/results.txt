@@ -1,0 +1,5 @@
+Weight Decay of 0.1 or 0.01 is just too much.
+
+One run of 0.01 worked out though and it was actually unagressively good
+so maybe Weight Decay does help with overfitting but also kind of keeps
+outputs in bound
