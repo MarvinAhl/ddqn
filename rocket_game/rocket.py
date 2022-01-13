@@ -9,22 +9,31 @@ class Rocket:
         self.m = 1.0E3  # Overall mass in kg
         self.J = 5.25E3  # Moment of Inertia in kg * m^2
 
-        self.x = (np.random.rand() * 2.0 - 1.0) * 65.0
-        self.y = -70.0
-        self.phi = (np.random.rand() * 2.0 - 1.0) * 0.5
+        self.reset()
+    
+    def reset(self):
+        # Coordinates are relative to landing pad in the bottom middle of the screen, y is pointing down
+        self.x = (np.random.rand() * 2.0 - 1.0) * 50.0
+        self.y = -60.0
+        self.phi = -self.x / 100.0 + (np.random.rand() * 2.0 - 1.0) * 0.25
 
         self.x_v = 0.0
-        self.y_v = 20.0
+        self.y_v = 30.0
         self.phi_v = 0.0
         
         self.f1 = 0.0
         self.f2 = 0.0
         self.theta = 0.0  # Angle of thrust
+
+        return np.array([self.x, self.y, self.x_v, self.y_v, self.phi, self.phi_v], dtype=np.float32)
     
     def init(self):
         pass
     
-    def update(self, dt):
+    def update(self, dt, action=None):
+        if not action == None:
+            self.control(action)
+
         x_a = self._calc_x_a()
         self.x_v += x_a * dt
         self.x += self.x_v * dt
@@ -41,6 +50,22 @@ class Rocket:
             self.phi -= 2.0 * np.pi
         elif self.phi <= -np.pi:
             self.phi += 2.0 * np.pi
+        
+        # Return state
+        return np.array([self.x, self.y, self.x_v, self.y_v, self.phi, self.phi_v], dtype=np.float32)
+
+    def control(self, action):
+        if action == 0:
+            self.set_f1(0.0)  # Turn off Booster
+        else:
+            self.set_f1(1.0)  # Turn on Booster
+        
+        if action == 0 or action == 1:
+            self.set_theta(0.0)  # Angle Booster center
+        elif action == 2:
+            self.set_theta(1.0)  # Angle Booster left
+        else:
+            self.set_theta(-1.0)  # Angle Booster right
 
     def set_f1(self, f):
         self.f1 = physics.main_engine_force * f
@@ -53,13 +78,13 @@ class Rocket:
     
     def render(self):
         x1 = self.x - self.l1 * np.sin(self.phi)
-        y1 = self.y + self.l1 * np.cos(self.phi)
+        y1 = self.y + self.l1 * np.cos(self.phi) - physics.ground_height
 
         x1_px = x1 * physics.pixel_per_meter
         y1_px = y1 * physics.pixel_per_meter
 
         x2 = self.x + self.l2 * np.sin(self.phi)
-        y2 = self.y - self.l2 * np.cos(self.phi)
+        y2 = self.y - self.l2 * np.cos(self.phi) - physics.ground_height
 
         x2_px = x2 * physics.pixel_per_meter
         y2_px = y2 * physics.pixel_per_meter
