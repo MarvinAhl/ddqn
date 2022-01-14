@@ -15,7 +15,7 @@ nS = env.observation_space.shape[0]
 nA = env.action_space.n
 
 agent = DDDQN(nS, nA, hidden_layers=(1000, 2000, 2000, 2000, 1000), device=device)
-agent.load_net('experiments_20220112/lunar_lander_r5_e1000.net')
+agent.load_net('experiments_20220113/lunar_lander_r2_e1000.net')
 
 episode_rewards = np.zeros(episodes, dtype=np.float32)
 

@@ -1,0 +1,16 @@
+My thesis of weight decay making algorithm less aggressive doesnt seem to hold anymore.
+Results are actually quite good though.
+
+Run 3 (weight_decay=1e-3): Aggressive and straight forward, can hold it till episode 1000
+Run 4 (weight_decay=1e-3): Quite like 3, doesnt always hit the center
+Overall 1e-3 seems to be a good value. No overfitting, policy stays consistent even after 1000 episodes
+
+Run 5 (weight_decay=1e-4): Good but 750 does a little worse than before. 1000 is recovers and could actually be one of the
+best policies so far
+Run 6 (weight_decay=1e-4): Quite bad, unlucky one
+
+Hidden Layers: (1000, 2000, 2000, 2000, 1000)
+
+Weight Decay seems to actually help when the coefficient is right.
+1e-3 worked her very well actually, AlphaGo Zero uses 1e-4 but its rewards are smaller by two
+magnitudes so that's fair
