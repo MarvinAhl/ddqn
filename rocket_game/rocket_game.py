@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Game:
-    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, device='cpu'):
+    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=500, device='cpu'):
         self.running = True
         self.display_surf = None
         self.size = (self.width, self.height) = (1280, 720)
@@ -31,12 +31,12 @@ class Game:
             self.agent = None
         
         self.save_episodes = save_episodes
+        self.step_limit = step_limit
 
         self.render = render
 
         # For measuring frame time
         self.last_time_ms = 0
-        self.updates_per_frame = 100
 
     def _init(self):
         pygame.init()
@@ -93,7 +93,7 @@ class Game:
 
         done = False
 
-        reward = 0.0 if action == 0 else -0.01  # Reward if booster is off or on
+        reward = 0.0 if action == 0 else -0.1  # Reward if booster is off or on
 
         engine_on_ground = 0.0 <= (state[1] + self.rocket.l1 * np.cos(state[4]))
         nose_on_ground = 0.0 <= (state[1] - self.rocket.l2 * np.cos(state[4]))
@@ -104,24 +104,29 @@ class Game:
 
         if out_of_bounds_left or out_of_bounds_right or out_of_bounds_top:
             done = True
-            reward += 0.0  # Reward for flying out of bounds
+            reward += -100.0  # Reward for flying out of bounds
         elif engine_on_ground or nose_on_ground:
             done = True
             # Reward for x-Position
             reward += self._gauss_reward(2.0, 20.0, 0.15, state[0])  # Low, flat curve to give direction
             reward += self._gauss_reward(20.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
-            # Reward for x-Velocity
-            reward += self._gauss_reward(2.0, 10.0, 0.15, state[2])
-            reward += self._gauss_reward(20.0, 1.0, 0.15, state[2])
-            # Reward for y-Velocity
-            reward += self._gauss_reward(2.0, 50.0, 0.15, state[3])
-            reward += self._gauss_reward(20.0, 5.0, 0.15, state[3])
-            # Reward for phi-Angle
-            reward += self._gauss_reward(2.0, 0.8, 0.15, state[4])
-            reward += self._gauss_reward(20.0, 0.03, 0.15, state[4])
-            # Reward for phi-Angular Velocity
-            reward += self._gauss_reward(2.0, 0.8, 0.15, state[5])
-            reward += self._gauss_reward(20.0, 0.03, 0.15, state[5])
+            
+            x_v_good = state[2] < 10.0 and state[2] > -10.0
+            y_v_good = state[3] < 50.0 and state[3] > -50.0
+            phi_good = state[4] < 0.8 and state[4] > -0.8
+            phi_v_good = state[5] < 0.8 and state[5] > -0.8
+
+            rocket_landed = x_v_good and y_v_good and phi_good and phi_v_good
+            if rocket_landed:
+                reward += 100.0  # Reward for landing
+
+                # Rewards for being on point
+                reward += self._gauss_reward(20.0, 1.0, 0.15, state[2])
+                reward += self._gauss_reward(20.0, 5.0, 0.15, state[3])
+                reward += self._gauss_reward(20.0, 0.03, 0.15, state[4])
+                reward += self._gauss_reward(20.0, 0.03, 0.15, state[5])
+            else:
+                reward += -100.0
 
         return state, reward, done
 
@@ -217,6 +222,10 @@ class Game:
                 episode_reward += reward
                 step_count += 1
                 greedy_count += is_greedy
+
+                # Stop Episode if time limit is reached
+                if step_count >= self.step_limit:
+                    done = True
             
             episode_rewards.append(episode_reward)
             overall_steps = step_count if len(steps) < 1 else steps[-1] + step_count
@@ -318,5 +327,5 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f'Using device {device}')
 
-    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, device=device)
+    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=500, device=device)
     game.play()
