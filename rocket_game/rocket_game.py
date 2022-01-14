@@ -93,7 +93,7 @@ class Game:
 
         done = False
 
-        reward = 0.0 if action == 0 else -0.1  # Reward if booster is off or on
+        reward = 0.0 if action == 0 else -0.01  # Reward if booster is off or on
 
         engine_on_ground = 0.0 <= (state[1] + self.rocket.l1 * np.cos(state[4]))
         nose_on_ground = 0.0 <= (state[1] - self.rocket.l2 * np.cos(state[4]))
@@ -104,12 +104,26 @@ class Game:
 
         if out_of_bounds_left or out_of_bounds_right or out_of_bounds_top:
             done = True
-            reward += -100.0  # Reward for flying out of bounds
+            reward += -50.0  # Reward for flying out of bounds
         elif engine_on_ground or nose_on_ground:
             done = True
             # Reward for x-Position
-            reward += self._gauss_reward(2.0, 20.0, 0.15, state[0])  # Low, flat curve to give direction
-            reward += self._gauss_reward(20.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
+            reward += self._gauss_reward(5.0, 20.0, 0.15, state[0])  # Low, flat curve to give direction
+            reward += self._gauss_reward(5.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
+            
+            # Guiding Rewards here
+            # Slight reward for y-Velocity
+            y_v_fac = self._gauss_reward(1.0, 25.0, 0.15, state[3])
+            reward += 20.0 * y_v_fac
+            # Add additional reward for good x-Velocity if y-Velocity is good
+            x_v_fac = self._gauss_reward(1.0, 10.0, 0.15, state[2])
+            reward += 20.0 * x_v_fac * y_v_fac
+            # Same for angle
+            phi_fac = self._gauss_reward(1.0, 0.3, 0.15, state[4])
+            reward += 20.0 * phi_fac * x_v_fac * y_v_fac
+            # And Angular Momentum
+            phi_v_fac = self._gauss_reward(1.0, 0.5, 0.15, state[5])
+            reward += 20.0 * phi_v_fac * phi_fac * x_v_fac * y_v_fac
             
             x_v_good = state[2] < 3.0 and state[2] > -3.0
             y_v_good = state[3] < 5.0 and state[3] > -5.0
@@ -126,7 +140,7 @@ class Game:
                 reward += self._gauss_reward(20.0, 0.03, 0.15, state[4])
                 reward += self._gauss_reward(20.0, 0.1, 0.15, state[5])
             else:
-                reward += -100.0
+                reward += -50.0
 
         return state, reward, done
 
@@ -327,5 +341,5 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f'Using device {device}')
 
-    game = Game(render=True, agent_play=False, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=2000, device=device)
+    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=2000, device=device)
     game.play()
