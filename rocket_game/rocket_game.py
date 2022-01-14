@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Game:
-    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=500, device='cpu'):
+    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=2000, device='cpu'):
         self.running = True
         self.display_surf = None
         self.size = (self.width, self.height) = (1280, 720)
@@ -22,7 +22,7 @@ class Game:
 
         if agent_play:
             self.agent = DDDQN(6, 4, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-                               weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
+                               weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
                                buffer_size_min=200, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
                                device=device)
             if not agent_train:
@@ -111,20 +111,20 @@ class Game:
             reward += self._gauss_reward(2.0, 20.0, 0.15, state[0])  # Low, flat curve to give direction
             reward += self._gauss_reward(20.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
             
-            x_v_good = state[2] < 10.0 and state[2] > -10.0
-            y_v_good = state[3] < 50.0 and state[3] > -50.0
-            phi_good = state[4] < 0.8 and state[4] > -0.8
-            phi_v_good = state[5] < 0.8 and state[5] > -0.8
+            x_v_good = state[2] < 3.0 and state[2] > -3.0
+            y_v_good = state[3] < 5.0 and state[3] > -5.0
+            phi_good = state[4] < 0.08 and state[4] > -0.08
+            phi_v_good = state[5] < 0.3 and state[5] > -0.3
 
             rocket_landed = x_v_good and y_v_good and phi_good and phi_v_good
             if rocket_landed:
                 reward += 100.0  # Reward for landing
 
                 # Rewards for being on point
-                reward += self._gauss_reward(20.0, 1.0, 0.15, state[2])
-                reward += self._gauss_reward(20.0, 5.0, 0.15, state[3])
+                reward += self._gauss_reward(20.0, 0.5, 0.15, state[2])
+                reward += self._gauss_reward(20.0, 1.0, 0.15, state[3])
                 reward += self._gauss_reward(20.0, 0.03, 0.15, state[4])
-                reward += self._gauss_reward(20.0, 0.03, 0.15, state[5])
+                reward += self._gauss_reward(20.0, 0.1, 0.15, state[5])
             else:
                 reward += -100.0
 
@@ -327,5 +327,5 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f'Using device {device}')
 
-    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=500, device=device)
+    game = Game(render=True, agent_play=False, agent_train=True, agent_file='rocket_game', save_episodes=100, step_limit=2000, device=device)
     game.play()

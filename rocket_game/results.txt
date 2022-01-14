@@ -1,0 +1,4 @@
+Earlier reward function of rewarding every parameter independently didn't work
+out at all because zero rotation is when your nose is pointing downwards. That's
+why I started rewarding landing successfully as a whole and then just adding
+gaussian terms to perfect it.
