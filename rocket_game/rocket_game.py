@@ -21,7 +21,7 @@ class Game:
         self.agent_file = agent_file
 
         if agent_play:
-            self.agent = DDDQN(6, 4, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
+            self.agent = DDDQN(6, 4, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
                                weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
                                buffer_size_min=200, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
                                device=device)
@@ -142,6 +142,7 @@ class Game:
             else:
                 reward += -50.0
         elif nose_on_ground:
+            done = True
             reward += -100.0
 
         return state, reward, done
@@ -243,7 +244,9 @@ class Game:
                 if step_count >= self.step_limit and self.agent_play:
                     done = True
             
-            if not self.agent_play:
+            if self.agent_play:
+                print(f'Reward: {episode_reward}')
+            else:
                 print(f'x: {state[0]}')
                 print(f'y: {state[1]}')
                 print(f'x_v: {state[2]}')
