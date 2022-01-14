@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Game:
-    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game.net', device='cpu'):
+    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, device='cpu'):
         self.running = True
         self.display_surf = None
         self.size = (self.width, self.height) = (1280, 720)
@@ -22,12 +22,15 @@ class Game:
 
         if agent_play:
             self.agent = DDDQN(6, 4, hidden_layers=(500, 500, 500), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-                               epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1, buffer_size_min=200,
-                               buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000, device=device)
+                               weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.1, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
+                               buffer_size_min=200, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
+                               device=device)
             if not agent_train:
-                self.agent.load_net('rocket_game.net')
+                self.agent.load_net(agent_file + '.net')
         else:
             self.agent = None
+        
+        self.save_episodes = save_episodes
 
         self.render = render
 
@@ -90,7 +93,7 @@ class Game:
 
         done = False
 
-        reward = 0.0 if action == 0 else -1.0  # Reward if booster is on or off
+        reward = 0.0 if action == 0 else -0.01  # Reward if booster is off or on
 
         engine_on_ground = 0.0 <= (state[1] + self.rocket.l1 * np.cos(state[4]))
         nose_on_ground = 0.0 <= (state[1] - self.rocket.l2 * np.cos(state[4]))
@@ -104,7 +107,21 @@ class Game:
             reward += 0.0  # Reward for flying out of bounds
         elif engine_on_ground or nose_on_ground:
             done = True
-            # TODO: Add some complex reward function here
+            # Reward for x-Position
+            reward += self._gauss_reward(2.0, 20.0, 0.15, state[0])  # Low, flat curve to give direction
+            reward += self._gauss_reward(20.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
+            # Reward for x-Velocity
+            reward += self._gauss_reward(2.0, 10.0, 0.15, state[2])
+            reward += self._gauss_reward(20.0, 1.0, 0.15, state[2])
+            # Reward for y-Velocity
+            reward += self._gauss_reward(2.0, 50.0, 0.15, state[3])
+            reward += self._gauss_reward(20.0, 5.0, 0.15, state[3])
+            # Reward for phi-Angle
+            reward += self._gauss_reward(2.0, 0.8, 0.15, state[4])
+            reward += self._gauss_reward(20.0, 0.03, 0.15, state[4])
+            # Reward for phi-Angular Velocity
+            reward += self._gauss_reward(2.0, 0.8, 0.15, state[5])
+            reward += self._gauss_reward(20.0, 0.03, 0.15, state[5])
 
         return state, reward, done
 
@@ -148,14 +165,15 @@ class Game:
     def _cleanup(self):
         pygame.quit()
 
-        # Save Net if agent was trained
-        if self.agent_play and self.agent_train:
-            self.agent.save_net(self.agent_file)
-
     def play(self):
         if self._init() == False:
             self.running = False
-        
+
+        episode_rewards = []
+        steps = []
+        greedy_rates = []
+        final_states = []
+
         episode = 0
 
         # Loop over all Episodes:
@@ -164,6 +182,10 @@ class Game:
             print(f'Episode {episode} started')
 
             state, done = self.rocket.reset(), False
+
+            episode_reward = 0.0
+            step_count = 0
+            greedy_count = 0
 
             self._init_time()
             # Loop for one Episode:
@@ -174,23 +196,96 @@ class Game:
                     self._on_event(event)
                 
                 if self.agent_play and self.agent_train:
-                    action = self.agent.act_e_greedy(state)  # Exploration strategy for training
+                    action, is_greedy = self.agent.act_e_greedy(state)  # Exploration strategy for training
                 elif self.agent_play and not self.agent_train:
-                    action = self.agent.act_greedily(state)  # Optimal strategy for evaluation
+                    action, is_greedy = self.agent.act_greedily(state)  # Optimal strategy for evaluation
                 elif not self.agent_play:
-                    action = None  # No action because human inputs work with pygame events
+                    action, is_greedy = None, True  # No action because human inputs work with pygame events
 
                 next_state, reward, done = self._update(dt, action)
                 
                 if self.agent_play and self.agent_train:
                     self.agent.experience(state, action, reward, next_state, done)
                     self.agent.train()
-                
-                state = next_state
 
                 if self.render:
                     self._render()
                     self._delay(dt)  # Wait in render mode after each calculation to ensure simulation is in real time
+                
+                state = next_state
+
+                episode_reward += reward
+                step_count += 1
+                greedy_count += is_greedy
+            
+            episode_rewards.append(episode_reward)
+            overall_steps = step_count if len(steps) < 1 else steps[-1] + step_count
+            steps.append(overall_steps)
+            greedy_rates.append(greedy_count / step_count)
+            final_states.append(state)
+
+            if (episode % self.save_episodes == 0 or not self.running) and self.agent_play:
+                # Save Net if agent was trained
+                if self.agent_train:
+                    self.agent.save_net(self.agent_file + f'_e{episode}' + '.net')
+
+                # Plot results
+                plt.clf()  # To prevent overlapping of old plots
+
+                figure, axis = plt.subplots(3, 1)
+                figure.suptitle('Training Stats')
+
+                axis[0].plot(np.arange(episode) + 1, episode_rewards, 'k-')
+                axis[0].grid(True)
+                axis[0].set_ylabel('Reward')
+
+                axis[1].plot(np.arange(episode) + 1, steps, 'k-')
+                axis[1].grid(True)
+                axis[1].set_ylabel('Steps')
+
+                axis[2].plot(np.arange(episode) + 1, greedy_rates, 'k-')
+                axis[2].grid(True)
+                axis[2].set_ylabel('Greedy Rate')
+                axis[2].set_xlabel('Episodes')
+
+                plt.savefig(f'train_stats_e{episode}.png')
+
+                plt.close(figure)
+
+                # Plot final states
+                plt.clf()  # To prevent overlapping of old plots
+
+                figure, axis = plt.subplots(3, 2)
+                figure.suptitle('Final States')
+
+                axis[0, 0].plot(np.arange(episode) + 1, [state[0] for state in final_states], 'k.')
+                axis[0, 0].grid(True)
+                axis[0, 0].set_ylabel('x/y Position')
+
+                axis[0, 1].plot(np.arange(episode) + 1, [state[1] for state in final_states], 'k.')
+                axis[0, 1].grid(True)
+
+                axis[1, 0].plot(np.arange(episode) + 1, [state[2] for state in final_states], 'k.')
+                axis[1, 0].grid(True)
+                axis[1, 0].set_ylabel('x/y Velocity')
+
+                axis[1, 1].plot(np.arange(episode) + 1, [state[3] for state in final_states], 'k.')
+                axis[1, 1].grid(True)
+
+                axis[2, 0].plot(np.arange(episode) + 1, [state[4] for state in final_states], 'k.')
+                axis[2, 0].grid(True)
+                axis[2, 0].set_ylabel('phi Angle/Velocity')
+                axis[2, 0].set_xlabel('Episodes')
+
+                axis[2, 1].plot(np.arange(episode) + 1, [state[5] for state in final_states], 'k.')
+                axis[2, 1].grid(True)
+                axis[2, 1].set_xlabel('Episodes')
+
+                plt.savefig(f'final_states_e{episode}.png')
+
+                plt.close(figure)
+
+                print(f'Episode {episode} saved')
 
         self._cleanup()
     
@@ -206,11 +301,22 @@ class Game:
 
         if d_d_time_ms > 0:
             pygame.time.delay(d_d_time_ms)
+    
+    def _gauss_reward(self, a, b, c, x):
+        """
+        Calculate unnormalized Gauss Curve with maximum height of a at x=0 that
+        decays to c*a at x=b. Return value at point x. Is used for the reward function.
+        """
+        temp = np.sqrt(-np.log(c**2))
+        alpha = np.sqrt(2*np.pi) * a * b / temp
+        sigma = b / temp
+
+        return alpha / sigma / np.sqrt(2*np.pi) * np.exp(-x**2 / 2 / sigma**2)
 
 
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f'Using device {device}')
 
-    game = Game(render=True, agent_play=False, agent_train=True, agent_file='rocket_game.net', device=device)
+    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game', save_episodes=100, device=device)
     game.play()
