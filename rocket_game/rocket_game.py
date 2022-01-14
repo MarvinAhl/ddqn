@@ -105,11 +105,11 @@ class Game:
         if out_of_bounds_left or out_of_bounds_right or out_of_bounds_top:
             done = True
             reward += -50.0  # Reward for flying out of bounds
-        elif engine_on_ground or nose_on_ground:
+        elif engine_on_ground:
             done = True
             # Reward for x-Position
-            reward += self._gauss_reward(5.0, 20.0, 0.15, state[0])  # Low, flat curve to give direction
-            reward += self._gauss_reward(5.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
+            reward += self._gauss_reward(10.0, 30.0, 0.15, state[0])  # Low, flat curve to give direction
+            reward += self._gauss_reward(10.0, 2.0, 0.15, state[0])  # High, sharp peak to really reward perfect behavior
             
             # Guiding Rewards here
             # Slight reward for y-Velocity
@@ -119,28 +119,30 @@ class Game:
             x_v_fac = self._gauss_reward(1.0, 10.0, 0.15, state[2])
             reward += 20.0 * x_v_fac * y_v_fac
             # Same for angle
-            phi_fac = self._gauss_reward(1.0, 0.3, 0.15, state[4])
+            phi_fac = self._gauss_reward(1.0, 0.5, 0.15, state[4])
             reward += 20.0 * phi_fac * x_v_fac * y_v_fac
             # And Angular Momentum
             phi_v_fac = self._gauss_reward(1.0, 0.5, 0.15, state[5])
             reward += 20.0 * phi_v_fac * phi_fac * x_v_fac * y_v_fac
             
-            x_v_good = state[2] < 3.0 and state[2] > -3.0
-            y_v_good = state[3] < 5.0 and state[3] > -5.0
-            phi_good = state[4] < 0.08 and state[4] > -0.08
-            phi_v_good = state[5] < 0.3 and state[5] > -0.3
+            x_v_good = state[2] < 5.0 and state[2] > -5.0
+            y_v_good = state[3] < 10.0 and state[3] > -10.0
+            phi_good = state[4] < 0.2 and state[4] > -0.2
+            phi_v_good = state[5] < 0.4 and state[5] > -0.4
 
             rocket_landed = x_v_good and y_v_good and phi_good and phi_v_good
             if rocket_landed:
                 reward += 100.0  # Reward for landing
 
                 # Rewards for being on point
-                reward += self._gauss_reward(20.0, 0.5, 0.15, state[2])
+                reward += self._gauss_reward(20.0, 3.0, 0.15, state[2])
                 reward += self._gauss_reward(20.0, 1.0, 0.15, state[3])
-                reward += self._gauss_reward(20.0, 0.03, 0.15, state[4])
-                reward += self._gauss_reward(20.0, 0.1, 0.15, state[5])
+                reward += self._gauss_reward(20.0, 0.1, 0.15, state[4])
+                reward += self._gauss_reward(20.0, 0.2, 0.15, state[5])
             else:
                 reward += -50.0
+        elif nose_on_ground:
+            reward += -100.0
 
         return state, reward, done
 
@@ -238,9 +240,19 @@ class Game:
                 greedy_count += is_greedy
 
                 # Stop Episode if time limit is reached
-                if step_count >= self.step_limit:
+                if step_count >= self.step_limit and self.agent_play:
                     done = True
             
+            if not self.agent_play:
+                print(f'x: {state[0]}')
+                print(f'y: {state[1]}')
+                print(f'x_v: {state[2]}')
+                print(f'y_v: {state[3]}')
+                print(f'phi: {state[4]}')
+                print(f'phi_v: {state[5]}')
+                print(f'Reward: {episode_reward}')
+                print('')
+
             episode_rewards.append(episode_reward)
             overall_steps = step_count if len(steps) < 1 else steps[-1] + step_count
             steps.append(overall_steps)
