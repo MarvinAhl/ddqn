@@ -8,7 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Game:
-    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game_hover', save_episodes=100, step_limit=2000, device='cpu'):
+    def __init__(self, render=True, agent_play=True, agent_train=True, agent_file='rocket_game_hover_adv', agent_load_file=None, save_episodes=100,
+                 step_limit=2000, device='cpu'):
         self.running = True
         self.display_surf = None
         self.size = (self.width, self.height) = (1280, 720)
@@ -19,6 +20,7 @@ class Game:
         self.agent_play = agent_play
         self.agent_train = agent_train
         self.agent_file = agent_file
+        self.agent_load_file = agent_load_file
 
         if agent_play:
             self.agent = DDDQN(6, 6, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
@@ -27,6 +29,8 @@ class Game:
                                device=device)
             if not agent_train:
                 self.agent.load_net(agent_file + '.net')
+            elif agent_train and not agent_load_file == None:
+                self.agent.load_net(agent_load_file + '.net')  # Only if should start from an existing network
         else:
             self.agent = None
         
@@ -247,7 +251,8 @@ class Game:
                 axis[2].set_ylabel('Greedy Rate')
                 axis[2].set_xlabel('Episodes')
 
-                plt.savefig(f'train_stats_e{episode}.png')
+                prefix = 'train' if self.agent_train else 'eval'
+                plt.savefig(prefix + f'_stats_e{episode}.png')
 
                 plt.close(figure)
 
@@ -280,7 +285,7 @@ class Game:
                 axis[2, 1].grid(True)
                 axis[2, 1].set_xlabel('Episodes')
 
-                plt.savefig(f'final_states_e{episode}.png')
+                plt.savefig(prefix + f'_final_states_e{episode}.png')
 
                 plt.close(figure)
 
@@ -317,5 +322,5 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f'Using device {device}')
 
-    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game_hover', save_episodes=100, step_limit=2000, device=device)
+    game = Game(render=True, agent_play=True, agent_train=False, agent_file='rocket_game_hover', save_episodes=100, step_limit=2000, device=device)
     game.play()

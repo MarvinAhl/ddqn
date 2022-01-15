@@ -9,12 +9,14 @@ class Rocket:
         self.m = 1.0E3  # Overall mass in kg
         self.J = 5.25E3  # Moment of Inertia in kg * m^2
 
+        self.rng = np.random.default_rng()
+
         self.reset()
     
     def reset(self):
         # Coordinates are relative to landing pad in the bottom middle of the screen, y is pointing down
         self.x = 0.0
-        self.y = -30.0
+        self.y = 0.0
         self.phi = 0.0
 
         self.x_v = 0.0
