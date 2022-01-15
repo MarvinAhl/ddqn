@@ -1,6 +1,6 @@
 Earlier reward function of rewarding every parameter independently didn't work
-out at all because zero rotation is when your nose is pointing downwards. That's
-why I started rewarding landing successfully as a whole and then just adding
+out at all because zero rotation is useless when your nose is pointing downwards.
+That's why I started rewarding landing successfully as a whole and then just adding
 gaussian terms to perfect it.
 
 Too much fuel punishement is also bad because it will just do nothing anymore.
@@ -10,3 +10,13 @@ It's always doing nothing but that's actually super stupid in my opinion.
 It even encountered some good landings by accident, why isn't it going for those?
 I think the complexity of the game might be too high so I will reduce how far
 off to the left and right the rocket can spawn
+
+Didn't work too, as expected ...
+Now I'm starting really basic, spawn rocket in the center of the screen and just
+try to hover it there, no randomnes, no difficulties. I even added the control
+nozzles to make it easier. The reward function is Potential Based
+
+Hovering seems to be quite promising actually, Episode 265 right now, doesn't do
+it yet but there is progress clearly visible
+
+Hovering works now, not perfect but it can stay upright for a long time already.
