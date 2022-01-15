@@ -197,9 +197,7 @@ class DDDQN:
             greedy_action = Q.argmax().item()
 
         if self.rng.random() < self.epsilon:
-            # Little modification for rocket game, half the time it will do nothing. Other actions are chosen uniformely at random else.
-            do_nothing = self.rng.integers(2)
-            action = 0 if do_nothing else self.rng.integers(self.action_num-1)+1  # Random
+            action = self.rng.integers(self.action_num)  # Random
         else:
             action = greedy_action  # Greedy
         
