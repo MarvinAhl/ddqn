@@ -114,7 +114,7 @@ class Game:
             # Guiding Rewards here
             # Slight reward for y-Velocity
             y_v_fac = self._gauss_reward(1.0, 25.0, 0.15, state[3])
-            reward += 20.0 * y_v_fac
+            reward += 50.0 * y_v_fac
             # Add additional reward for good x-Velocity if y-Velocity is good
             x_v_fac = self._gauss_reward(1.0, 10.0, 0.15, state[2])
             reward += 20.0 * x_v_fac * y_v_fac

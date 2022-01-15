@@ -5,3 +5,8 @@ gaussian terms to perfect it.
 
 Too much fuel punishement is also bad because it will just do nothing anymore.
 Added some slight rewards for x- and y-velocities at tuchdown to guide learning
+
+It's always doing nothing but that's actually super stupid in my opinion.
+It even encountered some good landings by accident, why isn't it going for those?
+I think the complexity of the game might be too high so I will reduce how far
+off to the left and right the rocket can spawn
