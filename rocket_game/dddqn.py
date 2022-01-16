@@ -86,6 +86,7 @@ class ExperienceBuffer:
     def get_experiences(self, batch_size):
         buff_len = self.__len__()
         
+        # 
         if not self.probs_updated:
             abs_errors = np.abs(self.errors[:buff_len])
             sorted_indices = abs_errors.argsort()[::-1]  # Indices from highest to lowest error

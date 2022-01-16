@@ -23,7 +23,10 @@ class Game:
         self.agent_load_file = agent_load_file
 
         if agent_play:
-            self.agent = DDDQN(6, 6, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=0.99, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
+            sampling_period = 0.01
+            lookahead_horizon = 5.0
+            gamma = np.exp(-sampling_period/lookahead_horizon)  # Calculate discount factor
+            self.agent = DDDQN(6, 6, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=gamma, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
                                weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
                                buffer_size_min=200, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
                                device=device)
@@ -36,6 +39,8 @@ class Game:
         
         self.x_target = 0.0
         self.y_target = -30.0
+
+        self.last_shaping = None  # For potential based reward shaping
         
         self.save_episodes = save_episodes
         self.step_limit = step_limit
@@ -95,20 +100,32 @@ class Game:
                     else:
                         self.rocket.set_f2(0.0)  # Stop firing control nozzle
 
-    def _update(self, dt, state, action=None):
-        old_state = state
+    def _update(self, dt, action=None):
         state = self.rocket.update(dt, action)
-        state[0] = state[0] - self.x_target
-        state[1] = state[1] - self.y_target
 
-        old_sqr_dist = old_state[0]**2 + old_state[1]**2
-        sqr_dist = state[0]**2 + state[1]**2
+        # Oberservation is like state but only with relative positions
+        obsv = state.copy()
+        obsv[0] -= self.x_target
+        obsv[1] -= self.y_target
 
-        done = sqr_dist > 28.0**2
+        shaping = self._calc_shaping(obsv)
+        reward = shaping - self.last_shaping
+        self.last_shaping = shaping
 
-        reward = 0.25 * (old_sqr_dist - sqr_dist)  # Potential Reward shaping
+        dist = np.sqrt(obsv[0]**2 + obsv[1]**2)
+        done = dist > 28.0
 
-        return state, reward, done
+        return obsv, reward, done
+
+    def _calc_shaping(self, state):
+        # Square potentials scaled to have about the same impact
+        position = -0.06 * (state[0]**2 + state[1]**2)
+        velocity = -0.12 * (state[2]**2 + state[3]**2)
+        angle = -35.0 * state[4]**2
+        ang_vel = -35.0 * state[5]**2
+
+        # Scaled importance
+        return position + velocity + angle + ang_vel
 
     def _render(self):
         ppm = physics.pixel_per_meter
@@ -157,7 +174,7 @@ class Game:
         episode_rewards = []
         steps = []
         greedy_rates = []
-        final_states = []
+        final_obsvs = []
 
         episode = 0
 
@@ -167,8 +184,12 @@ class Game:
             print(f'Episode {episode} started')
 
             state, done = self.rocket.reset(), False
-            state[0] = state[0] - self.x_target
-            state[1] = state[1] - self.y_target
+
+            obsv = state.copy()
+            obsv[0] -= self.x_target
+            obsv[1] -= self.y_target
+
+            self.last_shaping = self._calc_shaping(obsv)  # Calculate initial potential
 
             episode_reward = 0.0
             step_count = 0
@@ -183,23 +204,23 @@ class Game:
                     self._on_event(event)
                 
                 if self.agent_play and self.agent_train:
-                    action, is_greedy = self.agent.act_e_greedy(state)  # Exploration strategy for training
+                    action, is_greedy = self.agent.act_e_greedy(obsv)  # Exploration strategy for training
                 elif self.agent_play and not self.agent_train:
-                    action, is_greedy = self.agent.act_greedily(state)  # Optimal strategy for evaluation
+                    action, is_greedy = self.agent.act_greedily(obsv)  # Optimal strategy for evaluation
                 elif not self.agent_play:
                     action, is_greedy = None, True  # No action because human inputs work with pygame events
 
-                next_state, reward, done = self._update(dt, state, action)
+                next_obsv, reward, done = self._update(dt, action)
                 
                 if self.agent_play and self.agent_train:
-                    self.agent.experience(state, action, reward, next_state, done)
+                    self.agent.experience(obsv, action, reward, next_obsv, done)
                     self.agent.train()
 
                 if self.render:
                     self._render()
                     self._delay(dt)  # Wait in render mode after each calculation to ensure simulation is in real time
                 
-                state = next_state
+                obsv = next_obsv
 
                 episode_reward += reward
                 step_count += 1
@@ -212,12 +233,12 @@ class Game:
             if self.agent_play:
                 print(f'Reward: {episode_reward}')
             else:
-                print(f'x: {state[0]}')
-                print(f'y: {state[1]}')
-                print(f'x_v: {state[2]}')
-                print(f'y_v: {state[3]}')
-                print(f'phi: {state[4]}')
-                print(f'phi_v: {state[5]}')
+                print(f'x: {obsv[0]}')
+                print(f'y: {obsv[1]}')
+                print(f'x_v: {obsv[2]}')
+                print(f'y_v: {obsv[3]}')
+                print(f'phi: {obsv[4]}')
+                print(f'phi_v: {obsv[5]}')
                 print(f'Reward: {episode_reward}')
                 print('')
 
@@ -225,7 +246,7 @@ class Game:
             overall_steps = step_count if len(steps) < 1 else steps[-1] + step_count
             steps.append(overall_steps)
             greedy_rates.append(greedy_count / step_count)
-            final_states.append(state)
+            final_obsvs.append(obsv)
 
             if (episode % self.save_episodes == 0 or not self.running) and self.agent_play:
                 # Save Net if agent was trained
@@ -256,36 +277,36 @@ class Game:
 
                 plt.close(figure)
 
-                # Plot final states
+                # Plot final obsvs
                 plt.clf()  # To prevent overlapping of old plots
 
                 figure, axis = plt.subplots(3, 2)
-                figure.suptitle('Final States')
+                figure.suptitle('Final Observations')
 
-                axis[0, 0].plot(np.arange(episode) + 1, [state[0] for state in final_states], 'k.')
+                axis[0, 0].plot(np.arange(episode) + 1, [obsv[0] for obsv in final_obsvs], 'k.')
                 axis[0, 0].grid(True)
                 axis[0, 0].set_ylabel('x/y Position')
 
-                axis[0, 1].plot(np.arange(episode) + 1, [state[1] for state in final_states], 'k.')
+                axis[0, 1].plot(np.arange(episode) + 1, [obsv[1] for obsv in final_obsvs], 'k.')
                 axis[0, 1].grid(True)
 
-                axis[1, 0].plot(np.arange(episode) + 1, [state[2] for state in final_states], 'k.')
+                axis[1, 0].plot(np.arange(episode) + 1, [obsv[2] for obsv in final_obsvs], 'k.')
                 axis[1, 0].grid(True)
                 axis[1, 0].set_ylabel('x/y Velocity')
 
-                axis[1, 1].plot(np.arange(episode) + 1, [state[3] for state in final_states], 'k.')
+                axis[1, 1].plot(np.arange(episode) + 1, [obsv[3] for obsv in final_obsvs], 'k.')
                 axis[1, 1].grid(True)
 
-                axis[2, 0].plot(np.arange(episode) + 1, [state[4] for state in final_states], 'k.')
+                axis[2, 0].plot(np.arange(episode) + 1, [obsv[4] for obsv in final_obsvs], 'k.')
                 axis[2, 0].grid(True)
                 axis[2, 0].set_ylabel('phi Angle/Velocity')
                 axis[2, 0].set_xlabel('Episodes')
 
-                axis[2, 1].plot(np.arange(episode) + 1, [state[5] for state in final_states], 'k.')
+                axis[2, 1].plot(np.arange(episode) + 1, [obsv[5] for obsv in final_obsvs], 'k.')
                 axis[2, 1].grid(True)
                 axis[2, 1].set_xlabel('Episodes')
 
-                plt.savefig(prefix + f'_final_states_e{episode}.png')
+                plt.savefig(prefix + f'_final_obsvs_e{episode}.png')
 
                 plt.close(figure)
 
@@ -322,5 +343,5 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f'Using device {device}')
 
-    game = Game(render=True, agent_play=True, agent_train=False, agent_file='rocket_game_hover', save_episodes=100, step_limit=2000, device=device)
+    game = Game(render=True, agent_play=True, agent_train=True, agent_file='rocket_game_hover', save_episodes=100, step_limit=2000, device=device)
     game.play()

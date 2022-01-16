@@ -16,7 +16,7 @@ class Rocket:
     def reset(self):
         # Coordinates are relative to landing pad in the bottom middle of the screen, y is pointing down
         self.x = 0.0
-        self.y = 0.0
+        self.y = -30.0
         self.phi = 0.0
 
         self.x_v = 0.0
