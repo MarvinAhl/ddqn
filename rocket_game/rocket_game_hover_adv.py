@@ -24,13 +24,13 @@ class Game:
 
         if agent_play:
             self.agent = DDDQN(6, 6, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=1.0, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-                               weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
-                               buffer_size_min=200, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
+                               weight_decay=0.001, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
+                               buffer_size_min=50000, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
                                device=device)
             if not agent_train:
                 self.agent.load_net(agent_file + '.net')
             elif agent_train and not agent_load_file == None:
-                self.agent.load_net(agent_load_file + '.net')  # Only if should start from an existing network
+                self.agent.load_net(agent_load_file + '.net')  # Only if it should start from an existing network
         else:
             self.agent = None
 
@@ -180,7 +180,7 @@ class Game:
             print(f'Episode {episode} started')
 
             # Generate new target with increasing randomness
-            std_dev = 20.0 * min(1.0, episode/1000.0)
+            std_dev = 20.0 * min(1.0, episode/2000.0)
             self.x_target = self.rng.normal(0.0, std_dev)
             self.y_target = -30.0 + self.rng.normal(0.0, std_dev)
 

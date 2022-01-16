@@ -19,4 +19,18 @@ nozzles to make it easier. The reward function is Potential Based
 Hovering seems to be quite promising actually, Episode 265 right now, doesn't do
 it yet but there is progress clearly visible
 
-Hovering works now, not perfect but it can stay upright for a long time already.
+Hovering works now, not perfectly but it can stay upright for a long time already.
+
+The Hovering was actually not as good as I expected because it always overshot.
+To continue with new experiments I need it to be dead on though so I worked on
+reward shaping now. Added a term for velocity, angle and angular velocity all
+of which are supposed to be zero and all of the are quadratic Potentials. Not really
+the results from before but maybe with a bit of tweaking ...
+Looking into a new random noise precess for exploration now. Random jittering doesn't
+really do the trick for obvious reasons so I found the Ohrnstein-Uhlenbeck-Process
+which seems to be promising but is continuous, not the right thing for my discrete
+action space. I could discretefy it but it would make more sense if the actions
+were in a logical order from most left to most right for that to work and that's
+kind of not practical with main engine and control nozzles bein in one action space
+so I decided to look into seperating those into independent action sets with
+seperate noise precesses.

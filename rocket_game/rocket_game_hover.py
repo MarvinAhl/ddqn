@@ -26,8 +26,8 @@ class Game:
             sampling_period = 0.01
             lookahead_horizon = 5.0
             gamma = np.exp(-sampling_period/lookahead_horizon)  # Calculate discount factor
-            self.agent = DDDQN(6, 6, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=gamma, learning_rate_start=0.0005, learning_rate_decay_steps=50000, learning_rate_min=0.0003,
-                               weight_decay=0.0005, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
+            self.agent = DDDQN(6, 6, hidden_layers=(1000, 2000, 2000, 2000, 1000), gamma=gamma, learning_rate_start=0.0005, learning_rate_decay_steps=100000, learning_rate_min=0.0003,
+                               weight_decay=0.001, epsilon_start=1.0, epsilon_decay_steps=20000, epsilon_min=0.15, temp_start=10, temp_decay_steps=20000, temp_min=0.1,
                                buffer_size_min=200, buffer_size_max=50000, batch_size=50, replays=1, tau=0.01, alpha=0.6, beta=0.1, beta_increase_steps=20000,
                                device=device)
             if not agent_train:
@@ -120,12 +120,12 @@ class Game:
     def _calc_shaping(self, state):
         # Square potentials scaled to have about the same impact
         position = -0.06 * (state[0]**2 + state[1]**2)
-        velocity = -0.12 * (state[2]**2 + state[3]**2)
-        angle = -35.0 * state[4]**2
-        ang_vel = -35.0 * state[5]**2
+        velocity = -0.03 * (state[2]**2 + state[3]**2)
+        angle = -5.0 * state[4]**2
+        ang_vel = -12.0 * state[5]**2
 
-        # Scaled importance
-        return position + velocity + angle + ang_vel
+        # Scaled by importance
+        return 2.0 * position + velocity + 0.5 * angle + 0.5 * ang_vel
 
     def _render(self):
         ppm = physics.pixel_per_meter
